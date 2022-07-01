@@ -1,0 +1,51 @@
+name: Build and Deploy main
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CI: false
+    if: "! contains(github.event.head_commit.message, '[skip]')"
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '6.0'
+        include-prerelease: True
+    - name: Restore dependencies
+      run: |
+        cd ./Galactic
+        dotnet restore --runtime linux-x64
+    - name: Build Linux
+      run:  |
+        cd ./Galactic
+        dotnet publish -c Release --self-contained true --runtime linux-x64 --framework net6.0 /p:useapphost=true
+    - name: Copy Files to main (rsync)
+      uses: burnett01/rsync-deployments@4.1
+      if: "!contains(github.event.head_commit.message, '[hard]')"
+      with:
+        switches: -avzr --delete
+        path: ./Galactic/Galactic/bin/Release/net6.0/linux-x64/publish/*
+        remote_path: /home/deploy/galactic/main/staging
+        remote_host: ${{ secrets.DEPLOY_SERVER }}
+        remote_user: ${{ secrets.USER }}
+        remote_port: ${{ secrets.PORT }}
+        remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+    - name: Call deploy.sh on Server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.DEPLOY_SERVER }}
+        port: ${{ secrets.PORT }}
+        username: ${{ secrets.USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: "sudo /var/aspnetcore/galactic/main/deploy.sh"

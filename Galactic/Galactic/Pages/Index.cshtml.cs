@@ -1,18 +1,18 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Diagnostics;
 
 namespace Galactic.Pages
 {
     public class IndexModel : PageModel
     {
-        private readonly ILogger<IndexModel> _logger;
+        private readonly IHostEnvironment host;
 
-        public IndexModel(ILogger<IndexModel> logger)
+        public IndexModel(IHostEnvironment host)
         {
-            _logger = logger;
+            this.host = host;
         }
 
-        public IActionResult OnGet() =>
-            Redirect("/auth");
+        public IActionResult OnGet() => File(Path.Combine(Debugger.IsAttached ? host.ContentRootPath : AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "auth", "index.html"), "text/html; charset=utf-8");
     }
 }
